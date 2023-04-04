@@ -49,25 +49,43 @@ class MovieSchema(Schema):
     director_id = fields.Integer()
 
 
+class DirectorSchema(Schema):
+    id = fields.Integer(dump_only=True)
+    name = fields.String()
+
+
+class GenreSchema(Schema):
+    id = fields.Integer(dump_only=True)
+    name = fields.String()
+
+
 movie_schema = MovieSchema()
 movies_schema = MovieSchema(many=True)
 
 
+director_schema = DirectorSchema()
+directors_schema = DirectorSchema(many=True)
+
+
+genre_schema = GenreSchema()
+genres_schema = GenreSchema(many=True)
+
+
 api = Api(app)
 movie_ns = api.namespace('movies')
+director_ns = api.namespace('directors')
+genre_ns = api.namespace('genres')
 
 
 @movie_ns.route('/')
 class MoviesView(Resource):
     def get(self):
         res = request.values.to_dict()
-        print(res)
         if res:
             if 'director_id' in res:
                 movies_by_director = Movie.query.filter(Movie.director_id == res['director_id'])
                 return movies_schema.dump(movies_by_director), 200
             elif 'genre_id' in res:
-                print(res['genre_id'])
                 movies_by_genre = Movie.query.filter(Movie.genre_id == res['genre_id'])
                 return movies_schema.dump(movies_by_genre), 200
         else:
@@ -119,6 +137,108 @@ class MovieView(Resource):
         try:
             movie = Movie.query.get(mid)
             db.session.delete(movie)
+            db.session.commit()
+            return '', 204
+        except Exception as e:
+            return str(e), 404
+
+
+@director_ns.route('/')
+class DirectorsView(Resource):
+    def get(self):
+        all_directors = Director.query.all()
+        return directors_schema.dump(all_directors), 200
+
+
+    def post(self):
+        director_json = request.json
+        new_director = Director(**director_json)
+
+        with db.session.begin():
+            db.session.add(new_director)
+            return '', 201
+
+
+@director_ns.route('/<int:did>')
+class DirectorView(Resource):
+    def get(self, did: int):
+        try:
+            director_by_id = db.session.query(Director).filter(Director.id == did).one()
+            return director_schema.dump(director_by_id), 200
+        except Exception as e:
+            return str(e), 404
+
+
+    def put(self, did: int):
+        try:
+            update_director = db.session.query(Director).filter(Director.id == did).one()
+            director_json = request.json
+
+            update_director.name = director_json.get('name')
+
+            db.session.add(update_director)
+            db.session.commit()
+            return '', 204
+        except Exception as e:
+            print(e)
+            return str(e), 404
+
+
+    def delete(self, did: int):
+        try:
+            director = Director.query.get(did)
+            db.session.delete(director)
+            db.session.commit()
+            return '', 204
+        except Exception as e:
+            return str(e), 404
+
+
+@genre_ns.route('/')
+class GenresView(Resource):
+    def get(self):
+        all_genres = Genre.query.all()
+        return genres_schema.dump(all_genres), 200
+
+
+    def post(self):
+        genre_json = request.json
+        new_genre = Genre(**genre_json)
+
+        with db.session.begin():
+            db.session.add(new_genre)
+            return '', 201
+
+
+@genre_ns.route('/<int:gid>')
+class GenreView(Resource):
+    def get(self, gid: int):
+        try:
+            genre_by_id = db.session.query(Genre).filter(Genre.id == gid).one()
+            return genre_schema.dump(genre_by_id), 200
+        except Exception as e:
+            return str(e), 404
+
+
+    def put(self, gid: int):
+        try:
+            update_genre = db.session.query(Genre).filter(Genre.id == gid).one()
+            genre_json = request.json
+
+            update_genre.name = genre_json.get('name')
+
+            db.session.add(update_genre)
+            db.session.commit()
+            return '', 204
+        except Exception as e:
+            print(e)
+            return str(e), 404
+
+
+    def delete(self, gid: int):
+        try:
+            genre = Genre.query.get(gid)
+            db.session.delete(genre)
             db.session.commit()
             return '', 204
         except Exception as e:
